@@ -33,7 +33,31 @@ import config as cfg
 from prepare_data import create_folder, load_hdf5_data, do_scale
 from data_generator import RatioDataGenerator
 from evaluation import io_task4, evaluate
-from main_crnn_at import block, slice1, slice2, slice1_output_shape, slice2_output_shape, run_func, recognize, get_stat
+
+def block(input):
+    cnn = Conv2D(128, (3, 3), padding="same", activation="linear", use_bias=False)(input)
+    cnn = BatchNormalization(axis=-1)(cnn)
+
+    cnn1 = Lambda(slice1, output_shape=slice1_output_shape)(cnn)
+    cnn2 = Lambda(slice2, output_shape=slice2_output_shape)(cnn)
+
+    cnn1 = Activation('linear')(cnn1)
+    cnn2 = Activation('sigmoid')(cnn2)
+
+    out = Multiply()([cnn1, cnn2])
+    return out
+
+def slice1(x):
+    return x[:, :, :, 0:64]
+
+def slice2(x):
+    return x[:, :, :, 64:128]
+
+def slice1_output_shape(input_shape):
+    return tuple([input_shape[0],input_shape[1],input_shape[2],64])
+
+def slice2_output_shape(input_shape):
+    return tuple([input_shape[0],input_shape[1],input_shape[2],64])
 
 def outfunc(vects):
     x,y=vects
@@ -119,6 +143,123 @@ def train(args):
                         verbose=1, 
                         callbacks=[save_model], 
                         validation_data=(te_x, te_y))
+
+def recognize(args, at_bool, sed_bool):
+    (te_x, te_y, te_na_list) = load_hdf5_data(args.te_hdf5_path, verbose=1)
+    x = te_x
+    y = te_y
+    na_list = te_na_list
+    
+    x = do_scale(x, args.scaler_path, verbose=1)
+    
+    fusion_at_list = []
+    fusion_sed_list = []
+    # for epoch in range(19, 81, 10):
+    for epoch in range(20, 30, 1):
+        t1 = time.time()
+        [model_path] = glob.glob(os.path.join(args.model_dir, 
+            "*.%02d-0.*.hdf5" % epoch))
+        model = load_model(model_path)
+        
+        # Audio tagging
+        if at_bool:
+            pred = model.predict(x)
+            fusion_at_list.append(pred)
+        
+        # Sound event detection
+        if sed_bool:
+            in_layer = model.get_layer('in_layer')
+            loc_layer = model.get_layer('localization_layer')
+            func_loc_output = K.function([in_layer.input, K.learning_phase()], 
+                                         [loc_layer.output])
+            pred3d = run_func(func_loc_output, x, batch_size=64)
+            fusion_sed_list.append(pred3d)
+        
+        print("Prediction time: %s" % (time.time() - t1,))
+    
+    # Write out AT probabilities
+    if at_bool:
+        fusion_at = np.mean(np.array(fusion_at_list), axis=0)
+        print("AT shape: %s" % (fusion_at.shape,))
+        io_task4.at_write_prob_mat_to_csv(
+            na_list=na_list, 
+            prob_mat=fusion_at, 
+            out_path=os.path.join(args.out_dir, "at_prob_mat.csv.gz"))
+    
+    # Write out SED probabilites
+    if sed_bool:
+        fusion_sed = np.mean(np.array(fusion_sed_list), axis=0)
+        print("SED shape:%s" % (fusion_sed.shape,))
+        io_task4.sed_write_prob_mat_list_to_csv(
+            na_list=na_list, 
+            prob_mat_list=fusion_sed, 
+            out_path=os.path.join(args.out_dir, "sed_prob_mat_list.csv.gz"))
+            
+    print("Prediction finished!")
+
+def get_stat(args, at_bool, sed_bool):
+    lbs = cfg.lbs
+    step_time_in_sec = cfg.step_time_in_sec
+    max_len = cfg.max_len
+    thres_ary = [0.3] * len(lbs)
+
+    # Calculate AT stat
+    if at_bool:
+        pd_prob_mat_csv_path = os.path.join(args.pred_dir, "at_prob_mat.csv.gz")
+        at_stat_path = os.path.join(args.stat_dir, "at_stat.csv")
+        at_submission_path = os.path.join(args.submission_dir, "at_submission.csv")
+        
+        at_evaluator = evaluate.AudioTaggingEvaluate(
+            weak_gt_csv="meta_data/groundtruth_weak_label_testing_set.csv", 
+            lbs=lbs)
+        
+        at_stat = at_evaluator.get_stats_from_prob_mat_csv(
+                        pd_prob_mat_csv=pd_prob_mat_csv_path, 
+                        thres_ary=thres_ary)
+                        
+        # Write out & print AT stat
+        at_evaluator.write_stat_to_csv(stat=at_stat, 
+                                       stat_path=at_stat_path)
+        at_evaluator.print_stat(stat_path=at_stat_path)
+        
+        # Write AT to submission format
+        io_task4.at_write_prob_mat_csv_to_submission_csv(
+            at_prob_mat_path=pd_prob_mat_csv_path, 
+            lbs=lbs, 
+            thres_ary=at_stat['thres_ary'], 
+            out_path=at_submission_path)
+               
+    # Calculate SED stat
+    if sed_bool:
+        sed_prob_mat_list_path = os.path.join(args.pred_dir, "sed_prob_mat_list.csv.gz")
+        sed_stat_path = os.path.join(args.stat_dir, "sed_stat.csv")
+        sed_submission_path = os.path.join(args.submission_dir, "sed_submission.csv")
+        
+        sed_evaluator = evaluate.SoundEventDetectionEvaluate(
+            strong_gt_csv="meta_data/groundtruth_strong_label_testing_set.csv", 
+            lbs=lbs, 
+            step_sec=step_time_in_sec, 
+            max_len=max_len)
+                            
+        # Write out & print SED stat
+        sed_stat = sed_evaluator.get_stats_from_prob_mat_list_csv(
+                    pd_prob_mat_list_csv=sed_prob_mat_list_path, 
+                    thres_ary=thres_ary)
+                    
+        # Write SED to submission format
+        sed_evaluator.write_stat_to_csv(stat=sed_stat, 
+                                        stat_path=sed_stat_path)                     
+        sed_evaluator.print_stat(stat_path=sed_stat_path)
+        
+        # Write SED to submission format
+        io_task4.sed_write_prob_mat_list_csv_to_submission_csv(
+            sed_prob_mat_list_path=sed_prob_mat_list_path, 
+            lbs=lbs, 
+            thres_ary=thres_ary, 
+            step_sec=step_time_in_sec, 
+            out_path=sed_submission_path)
+                                                        
+    print("Calculating stat finished!")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="")
