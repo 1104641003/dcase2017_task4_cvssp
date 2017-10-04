@@ -18,8 +18,10 @@ The data set used in this chanllege is part of Google Audioset.
 
 DCASE 2017 challenge is organized by TUT, CMU and INRIA, sponsored by Google and Audio Analytic. The CVSSP team submitted four systems to the audio tagging sub-task,which took all the top four places on the result table, among the 29 systems submitted by a number of organisations. CVSSP's system is also ranked at the 3rd place in the sound event detection subtask, among 17 systems. The competitors include CMU, New York University, Bosch, USC, TUT, Singapore A*Star, Korean Advanced Institute of Science and Technology, Seoul National University, National Taiwan university, etc.
 
-
-
 Number of training files: 51172
 Number of testing files: 488
 Number of evaluation files: 1103
+
+If you use this code, please cite our papers:
+"Large-scale weakly supervised audio classification using gated convolutional neural network" https://arxiv.org/abs/1710.00343
+
