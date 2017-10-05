@@ -23,5 +23,6 @@ Number of testing files: 488
 Number of evaluation files: 1103
 
 If you use this code, please cite our papers:
-"Large-scale weakly supervised audio classification using gated convolutional neural network" https://arxiv.org/abs/1710.00343
+
+[1] "Large-scale weakly supervised audio classification using gated convolutional neural network" https://arxiv.org/abs/1710.00343
 
