@@ -144,6 +144,18 @@ def train(args):
                         callbacks=[save_model], 
                         validation_data=(te_x, te_y))
 
+# Run function in mini-batch to save memory. 
+def run_func(func, x, batch_size):
+    pred_all = []
+    batch_num = int(np.ceil(len(x) / float(batch_size)))
+    for i1 in xrange(batch_num):
+        batch_x = x[batch_size * i1 : batch_size * (i1 + 1)]
+        [preds] = func([batch_x, 0.])
+        pred_all.append(preds)
+    pred_all = np.concatenate(pred_all, axis=0)
+    return pred_all
+
+# Recognize and write probabilites. 
 def recognize(args, at_bool, sed_bool):
     (te_x, te_y, te_na_list) = load_hdf5_data(args.te_hdf5_path, verbose=1)
     x = te_x
@@ -154,7 +166,6 @@ def recognize(args, at_bool, sed_bool):
     
     fusion_at_list = []
     fusion_sed_list = []
-    # for epoch in range(19, 81, 10):
     for epoch in range(20, 30, 1):
         t1 = time.time()
         [model_path] = glob.glob(os.path.join(args.model_dir, 
@@ -170,9 +181,9 @@ def recognize(args, at_bool, sed_bool):
         if sed_bool:
             in_layer = model.get_layer('in_layer')
             loc_layer = model.get_layer('localization_layer')
-            func_loc_output = K.function([in_layer.input, K.learning_phase()], 
-                                         [loc_layer.output])
-            pred3d = run_func(func_loc_output, x, batch_size=64)
+            func = K.function([in_layer.input, K.learning_phase()], 
+                              [loc_layer.output])
+            pred3d = run_func(func, x, batch_size=20)
             fusion_sed_list.append(pred3d)
         
         print("Prediction time: %s" % (time.time() - t1,))
@@ -197,6 +208,7 @@ def recognize(args, at_bool, sed_bool):
             
     print("Prediction finished!")
 
+# Get stats from probabilites. 
 def get_stat(args, at_bool, sed_bool):
     lbs = cfg.lbs
     step_time_in_sec = cfg.step_time_in_sec
