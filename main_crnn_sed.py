@@ -1,9 +1,9 @@
-"""Train a cldnn on the task4 of DCASE2017 dataset.
-GPU run command with Theano backend (with TensorFlow, the GPU is automatically used):
-    THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatx=float32 python train*.py
-
-Author: Yong XU
-Creat date: 03/04/2017
+"""
+Summary:  DCASE 2017 task 4 Large-scale weakly supervised 
+          sound event detection for smart cars. Ranked 1 in DCASE 2017 Challenge.
+Author:   Yong Xu, Qiuqiang Kong
+Created:  03/04/2017
+Modified: 11/10/2017
 """
 from __future__ import print_function 
 import sys
