@@ -3,7 +3,7 @@ Summary:  DCASE 2017 task 4 Large-scale weakly supervised
           sound event detection for smart cars. Ranked 1 in DCASE 2017 Challenge.
 Author:   Yong Xu, Qiuqiang Kong
 Created:  03/04/2017
-Modified: 11/10/2017
+Modified: 31/10/2017
 """
 from __future__ import print_function 
 import sys
@@ -34,6 +34,7 @@ from prepare_data import create_folder, load_hdf5_data, do_scale
 from data_generator import RatioDataGenerator
 from evaluation import io_task4, evaluate
 
+# CNN with Gated linear unit (GLU) block
 def block(input):
     cnn = Conv2D(128, (3, 3), padding="same", activation="linear", use_bias=False)(input)
     cnn = BatchNormalization(axis=-1)(cnn)
@@ -66,53 +67,54 @@ def outfunc(vects):
     x = K.sum(x, axis=1)
     return x / y
 
+# Train model
 def train(args):
     num_classes = cfg.num_classes
     
     # Load training & testing data
     (tr_x, tr_y, tr_na_list) = load_hdf5_data(args.tr_hdf5_path, verbose=1)
-    # (tr_x, tr_y, tr_na_list) = load_hdf5(args.te_hdf5_path, verbose=1)
     (te_x, te_y, te_na_list) = load_hdf5_data(args.te_hdf5_path, verbose=1)
-    print("")
+    print("tr_x.shape: %s" % (tr_x.shape,))
 
     # Scale data
     tr_x = do_scale(tr_x, args.scaler_path, verbose=1)
     te_x = do_scale(te_x, args.scaler_path, verbose=1)
     
     # Build model
-    (_, n_time, n_freq) = tr_x.shape
-    input_logmel = Input(shape=(n_time, n_freq), name='in_layer')
-    a1 = Reshape((n_time, n_freq, 1))(input_logmel)
+    (_, n_time, n_freq) = tr_x.shape    # (N, 240, 64)
+    input_logmel = Input(shape=(n_time, n_freq), name='in_layer')   # (N, 240, 64)
+    a1 = Reshape((n_time, n_freq, 1))(input_logmel) # (N, 240, 64, 1)
     
-    cnn1 = block(a1)
-    cnn1 = block(cnn1)
-    cnn1 = MaxPooling2D(pool_size=(1, 2))(cnn1)
+    a1 = block(a1)
+    a1 = block(a1)
+    a1 = MaxPooling2D(pool_size=(1, 2))(a1) # (N, 240, 32, 128)
     
-    cnn1 = block(cnn1)
-    cnn1 = block(cnn1)
-    cnn1 = MaxPooling2D(pool_size=(1, 2))(cnn1)
+    a1 = block(a1)
+    a1 = block(a1)
+    a1 = MaxPooling2D(pool_size=(1, 2))(a1) # (N, 240, 16, 128)
     
-    cnn1 = block(cnn1)
-    cnn1 = block(cnn1)
-    cnn1 = MaxPooling2D(pool_size=(1, 2))(cnn1)
+    a1 = block(a1)
+    a1 = block(a1)
+    a1 = MaxPooling2D(pool_size=(1, 2))(a1) # (N, 240, 8, 128)
     
-    cnn1 = block(cnn1)
-    cnn3 = block(cnn1)
-    cnn3 = MaxPooling2D(pool_size=(1, 2))(cnn1)
+    a1 = block(a1)
+    a1 = block(a1)
+    a1 = MaxPooling2D(pool_size=(1, 2))(a1) # (N, 240, 4, 128)
     
-    cnnout = Conv2D(256, (3, 3), padding="same", activation="relu", use_bias=True)(cnn3)
-    cnnout = MaxPooling2D(pool_size=(1, 4))(cnnout)
+    a1 = Conv2D(256, (3, 3), padding="same", activation="relu", use_bias=True)(a1)
+    a1 = MaxPooling2D(pool_size=(1, 4))(a1) # (N, 240, 1, 256)
     
-    cnnout = Reshape((240, 256))(cnnout)   # Time step is downsampled to 30. 
+    a1 = Reshape((240, 256))(a1) # (N, 240, 256)
     
-    rnnout = Bidirectional(GRU(128, activation='linear', return_sequences=True))(cnnout)
-    rnnout_gate = Bidirectional(GRU(128, activation='sigmoid', return_sequences=True))(cnnout)
-    out = Multiply()([rnnout, rnnout_gate])
+    # Gated BGRU
+    rnnout = Bidirectional(GRU(128, activation='linear', return_sequences=True))(a1)
+    rnnout_gate = Bidirectional(GRU(128, activation='sigmoid', return_sequences=True))(a1)
+    a2 = Multiply()([rnnout, rnnout_gate])
     
-    out = TimeDistributed(Dense(num_classes, activation='sigmoid'), name='localization_layer')(out)
-    det =TimeDistributed(Dense(num_classes, activation='softmax'))(out)
-    out=Multiply()([out,det])
-    out=Lambda(outfunc, output_shape=(num_classes,))([out, det])
+    # Attention
+    cla = TimeDistributed(Dense(num_classes, activation='sigmoid'), name='localization_layer')(a2)
+    att = TimeDistributed(Dense(num_classes, activation='softmax'))(a2)
+    out = Lambda(outfunc, output_shape=(num_classes,))([cla, att])
     
     model = Model(input_logmel, out)
     model.summary()
@@ -139,7 +141,7 @@ def train(args):
     # Train
     model.fit_generator(generator=gen.generate([tr_x], [tr_y]), 
                         steps_per_epoch=100,    # 100 iters is called an 'epoch'
-                        epochs=2000000010,      # Maximum 'epoch' to train
+                        epochs=999999,      # Set to a big value. Maximum 'epoch' to train
                         verbose=1, 
                         callbacks=[save_model], 
                         validation_data=(te_x, te_y))
