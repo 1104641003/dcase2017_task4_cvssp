@@ -60,12 +60,12 @@ def slice1_output_shape(input_shape):
 def slice2_output_shape(input_shape):
     return tuple([input_shape[0],input_shape[1],input_shape[2],64])
 
+# Attention weighted sum
 def outfunc(vects):
-    x,y=vects
-    y = K.clip(y, 1e-7, 1.)     # clip to avoid numerical underflow
-    y = K.sum(y, axis=1)
-    x = K.sum(x, axis=1)
-    return x / y
+    cla, att = vects    # (N, n_time, n_out), (N, n_time, n_out)
+    att = K.clip(att, 1e-7, 1.)
+    out = K.sum(cla * att, axis=1) / K.sum(att, axis=1)     # (N, n_out)
+    return out
 
 # Train model
 def train(args):
@@ -141,7 +141,7 @@ def train(args):
     # Train
     model.fit_generator(generator=gen.generate([tr_x], [tr_y]), 
                         steps_per_epoch=100,    # 100 iters is called an 'epoch'
-                        epochs=999999,      # Set to a big value. Maximum 'epoch' to train
+                        epochs=31,              # Maximum 'epoch' to train
                         verbose=1, 
                         callbacks=[save_model], 
                         validation_data=(te_x, te_y))
