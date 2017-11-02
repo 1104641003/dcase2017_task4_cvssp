@@ -5,7 +5,8 @@
 Source code for our 1st prize system to win the DCASE2017 task4 "Large-scale weakly supervised sound event detection for smart cars" challenge. 
 
 To run:
-1. Download the data, please see https://groups.google.com/forum/#!searchin/dcase-discussions/own%7Csort:relevance/dcase-discussions/Lk2dTScX3A8/kvW17tlzAgAJ
+1. To download the development data, please see https://groups.google.com/forum/#!searchin/dcase-discussions/own%7Csort:relevance/dcase-discussions/Lk2dTScX3A8/kvW17tlzAgAJ
+   To download the evaluation data, please go to http://www.cs.tut.fi/sgn/arg/dcase2017/challenge/task-large-scale-sound-event-detection
 2. ./runme.sh
 
 The detailed results can be found here: 
