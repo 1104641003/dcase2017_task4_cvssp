@@ -4,6 +4,7 @@ TEST_WAV_DIR="/vol/vssp/AP_datasets/audio/audioset/task4_dcase2017_audio/officia
 TRAIN_WAV_DIR="/vol/vssp/AP_datasets/audio/audioset/task4_dcase2017_audio/official_downloads/training"
 EVALUATION_WAV_DIR="/vol/vssp/datasets/audio/audioset/task4_dcase2017_audio/official_downloads/evaluation"
 
+# You can to modify to your own workspace. 
 WORKSPACE=`pwd`
 
 # Extract features
