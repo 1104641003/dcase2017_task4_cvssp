@@ -252,6 +252,7 @@ def calculate_scaler(hdf5_path, out_path):
     Returns:
       None. 
     """
+    create_folder(out_path)
     t1 = time.time()
     (x, y, na_list) = load_hdf5_data(hdf5_path, verbose=1)
     (n_clips, n_time, n_freq) = x.shape
