@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash 
 # You need to modify to your dataset path
 TEST_WAV_DIR="/vol/vssp/AP_datasets/audio/audioset/task4_dcase2017_audio/official_downloads/testing"
 TRAIN_WAV_DIR="/vol/vssp/AP_datasets/audio/audioset/task4_dcase2017_audio/official_downloads/training"
