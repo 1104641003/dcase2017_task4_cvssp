@@ -27,3 +27,10 @@ If you use this code, please cite our papers:
 
 [1] "Large-scale weakly supervised audio classification using gated convolutional neural network" accepted by ICASSP2018 https://arxiv.org/abs/1710.00343
 
+@article{xu2017large,
+  title={Large-scale weakly supervised audio classification using gated convolutional neural network},
+  author={Xu, Yong and Kong, Qiuqiang and Wang, Wenwu and Plumbley, Mark D},
+  journal={ICASSP2018},
+  year={2018}
+}
+
