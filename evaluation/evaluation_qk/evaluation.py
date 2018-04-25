@@ -31,7 +31,7 @@ def tp_fn_fp_tn(pred, gt, thres):
     pred_digt = np.zeros_like(pred)
     pred_digt[np.where(pred > thres)] = 1.
     tp = np.sum(pred_digt + gt > 1.5)
-    fn = np.sum(gt - pred > 0.5)
+    fn = np.sum(gt - pred_digt > 0.5)
     fp = np.sum(pred_digt - gt > 0.5)
     tn = np.sum(pred_digt + gt < 0.5)
     return tp, fn, fp, tn
